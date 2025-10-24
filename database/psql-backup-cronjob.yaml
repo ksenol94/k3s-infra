@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-backup
+  namespace: database
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 10   # son 10 başarılı job saklanacak
+  failedJobsHistoryLimit: 5        # son 5 başarısız job saklanacak
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: pg-backup
+              image: postgres:15
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_USER
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secret
+                      key: POSTGRES_DB
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  BACKUP_DIR=/backup/pg_backups
+                  mkdir -p $BACKUP_DIR
+                  FILENAME=dump-$(date +\%Y\%m\%d-\%H\%M).sql
+                  echo "[$(date)] Starting pg_dump to $BACKUP_DIR/$FILENAME"
+                  pg_dump -h postgres-service -U $POSTGRES_USER $POSTGRES_DB > $BACKUP_DIR/$FILENAME
+                  echo "[$(date)] Backup completed"
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgres-pvc
