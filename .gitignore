@@ -5,3 +5,13 @@
 *.out
 .DS_Store
 Thumbs.db
+# Terraform local state
+*.tfstate
+*.tfstate.backup
+
+# Sensitive local configs
+terraform.tfvars
+*.tfvars.json
+
+# Local environment files
+.env
